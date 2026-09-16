@@ -111,3 +111,9 @@ You're free to improve on this structure or restructure it entirely -- what matt
 ## Dataset
 
 See `data/README.md`.
+
+## Name 
+Duarte Oliveira 20231587
+Logistic Regression we got a Train accuracy of 0.679 and a Test accuracy of 0.680 and with an accuracy of 0.68 . 
+Decision tree has a higher train accurary of 0.829 and a test accuracy of 0.629 so we have a overfitting case, since the train is much higher than the test, the model is memorizing the train data, also it has a lower accuracy (0.63) than the Logistic Regression model.
+So we can conclude that logistic regression is the better model for now.

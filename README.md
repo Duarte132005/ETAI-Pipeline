@@ -42,7 +42,6 @@ before imputation and encoding.
 
 ### Model configuration
 
-### Week 2 vs Week 3 — Before and After Cleaning
 
 We compared last week's baseline with this week's pipeline after
 adding data diagnosis and cleaning.

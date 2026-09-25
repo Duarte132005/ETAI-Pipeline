@@ -73,3 +73,56 @@ def find_duplicates(df: pd.DataFrame, id_column: str = None) -> dict:
     if id_column and id_column in df.columns:
         result["repeated_ids"] = int(df[id_column].duplicated().sum())
     return result
+
+
+def apply_consistency_rules(df: pd.DataFrame,rules: list,) -> pd.DataFrame:
+    """Apply configured numeric-to-category rules in place."""
+    report = []
+
+    for rule in rules:
+        source = rule["source"]
+        destination = rule["destination"]
+        action = rule.get("action", "replace")
+
+        if action not in {"replace", "set_missing"}:
+            raise ValueError(f"Unsupported consistency action: {action}")
+
+        numeric = pd.to_numeric(df[source], errors="coerce")
+
+        expected = pd.cut(
+            numeric,
+            bins=rule["bins"],
+            labels=rule["labels"],
+            right=rule.get("right", False),
+            include_lowest=True,
+        ).astype("string")
+
+        actual = df[destination].astype("string").str.strip()
+
+        # Only compare rows for which a category can be calculated.
+        mismatch = (
+            expected.notna()
+            & actual.notna()
+            & actual.ne(expected)
+        ).fillna(False)
+
+        missing_category = expected.notna() & actual.isna()
+
+        if action == "replace":
+            # Trust the source: correct mismatches and fill missing categories.
+            change = mismatch | missing_category
+            df.loc[change, destination] = expected.loc[change]
+        else:
+            # Mark inconsistent categories as missing for later imputation.
+            change = mismatch
+            df.loc[change, destination] = np.nan
+
+        report.append({
+            "source": source,
+            "destination": destination,
+            "mismatches": int(mismatch.sum()),
+            "values_changed": int(change.sum()),
+            "action": action,
+        })
+
+    return pd.DataFrame(report)

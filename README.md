@@ -10,110 +10,68 @@ It has some **deliberately weak spots**. Part of your work this
 semester is finding them and making them better -- see the pipeline progress table below, which tracks what changes and why as the weeks
 go on.
 
-## Project structure
-
-```
-.
-├── main.py                # entry point: run the whole pipeline
-├── config.yaml             # all tunable settings live here
-├── requirements.txt
-├── src/
-│   ├── data.py             # loading
-│   ├── preprocessing.py    # cleaning + train/test split
-│   ├── model.py             # model construction
-│   ├── evaluate.py         # accuracy metrics + fairness check
-│   └── results.py          # saves each run's report to disk
-├── results/                # created automatically -- one file per run (not tracked in git)
-└── data/
-    ├── compas_two_year_recidivism.csv
-    └── README.md            # problem description + full data dictionary
-```
-
-## Pipeline progress
-
-This table is updated after each practical class, so you can always see what changed in the pipeline and why -- it's a running log, not a fixed syllabus.
-
-| Week | Practical class focus | Added to the pipeline |
-|------|------------------------|------------------------|
-| 2 | Introduction & baseline pipeline | Initial version: project structure, a single naive train/test split (no cross-validation), minimal preprocessing (drop rows with missing values, one-hot encode categoricals), logistic regression baseline, a first (deliberately simple) fairness check comparing our model's and COMPAS's own false-positive rate by race, train-vs-test accuracy reporting (to start spotting overfitting), and each run's full report saved automatically to `results/` |
-
-## Environment setup
-
-You only need to do this once per machine.
-
-### macOS / Linux
-```bash
-python3 -m venv venv                 # creates an isolated Python environment in a folder called "venv"
-source venv/bin/activate             # activates it -- packages install here, not system-wide, and stay out of your other projects
-pip install -r requirements.txt      # installs the exact packages this project needs, into that environment
-```
-
-### Windows -- PowerShell
-```powershell
-python -m venv venv                  # creates an isolated Python environment in a folder called "venv"
-venv\Scripts\activate                # activates it -- packages install here, not system-wide, and stay out of your other projects
-pip install -r requirements.txt      # installs the exact packages this project needs, into that environment
-```
-If PowerShell blocks the activation script, run this once first:
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-```
-
-### Windows -- cmd.exe
-Same three steps as above, just with cmd's own activation command:
-```cmd
-python -m venv venv
-venv\Scripts\activate.bat
-pip install -r requirements.txt
-```
-
-Once the environment is active you'll see `(venv)` at the start of your prompt. To leave it later, run `deactivate` (same command on every OS).
-
-### Every time after the first
-
-Creating the environment and installing packages only needs to happen once, ever. Every other time you sit down to work -- a new terminal window, the next practical class, tomorrow -- you don't repeat any of the steps above. From the project's root folder, you just need to:
-
-**macOS / Linux**
-```bash
-source venv/bin/activate
-python main.py
-```
-
-**Windows**
-```powershell
-venv\Scripts\activate
-python main.py
-```
-
-That's it -- activate, then run. If you don't see `(venv)` at the start of your prompt, the environment isn't active and `python main.py` may use the wrong Python (or fail to find a package) entirely.
-
-## Running the pipeline
-
-With the environment active (see above), from the project's root
-folder, on any OS:
-```bash
-python main.py
-```
-
-This loads `config.yaml`, loads and preprocesses the data, trains the model, and prints:
-- **train accuracy and test accuracy, side by side.** Comparing the two is how you catch overfitting: if the model looks much better on the data it was trained on than on data it's never seen, it has memorised rather than learned something that generalises. 
-- a classification report on the test set
-- a false-positive-rate-by-race comparison between our model and
-  COMPAS's own score
-
-All of this is also saved to a timestamped file in `results/` (e.g.`results/run_20260916_143012.txt`), so it doesn't just scroll past in your terminal -- open it later, or change something in `config.yaml` (like the model type) and compare the new file to the last one.
-`results/` is created automatically the first time you run the
-pipeline, and isn't tracked in git (see `.gitignore`) since it's
-generated output, not source.
-
-You're free to improve on this structure or restructure it entirely -- what matters is that your project stays runnable end-to-end with a single command, and that each piece (data, preprocessing, model, evaluation) stays easy to find and change independently.
-
-## Dataset
-
-See `data/README.md`.
-
 ## Name 
 Duarte Oliveira 20231587
+week1
 Logistic Regression we got a Train accuracy of 0.679 and a Test accuracy of 0.680 and with an accuracy of 0.68 . 
 Decision tree has a higher train accurary of 0.829 and a test accuracy of 0.629 so we have a overfitting case, since the train is much higher than the test, the model is memorizing the train data, also it has a lower accuracy (0.63) than the Logistic Regression model.
 So we can conclude that logistic regression is the better model for now.
+
+--
+## Week 2 — Data Diagnosis and Preprocessing
+
+This week, we extended the pipeline with data quality checks.
+
+### Additional consistency checks
+
+I checked whether related columns agreed with each other:
+
+- Found 6 rows where `age_cat` disagreed with a valid numeric age.
+- Found 10 rows where `score_text` disagreed with `decile_score`.
+- Corrected these categories using the numeric source values as the
+  authoritative values.
+
+The age check initially flagged 116 rows. Of these, 110 were caused by
+the check's age-45 boundary assumption. We adjusted the check to match
+the dataset's convention, leaving 6 inconsistencies.
+
+A generic `apply_consistency_rules()` function now reads intervals,
+labels, source columns, destination columns, and actions from the
+configuration. It runs after validity checks and category cleanup,
+before imputation and encoding.
+
+### Model configuration
+
+### Week 2 vs Week 3 — Before and After Cleaning
+
+We compared last week's baseline with this week's pipeline after
+adding data diagnosis and cleaning.
+
+| Metric | Logistic regression: before | After | Decision tree: before | After |
+|---|---:|---:|---:|---:|
+| Training accuracy | 0.679 | 0.673 | 0.829 | 0.795 |
+| Test accuracy | 0.680 | 0.673 | 0.629 | 0.648 |
+| Reported train–test gap | -0.001 | 0.000 | 0.199 | 0.148 |
+| Class 0 precision | 0.69 | 0.67 | 0.64 | 0.65 |
+| Class 0 recall | 0.75 | 0.77 | 0.75 | 0.75 |
+| Class 0 F1-score | 0.72 | 0.72 | 0.69 | 0.70 |
+| Class 1 precision | 0.66 | 0.67 | 0.62 | 0.64 |
+| Class 1 recall | 0.60 | 0.55 | 0.49 | 0.52 |
+| Class 1 F1-score | 0.63 | 0.61 | 0.55 | 0.58 |
+| Test samples | 1,252 | 1,237 | 1,252 | 1,237 |
+
+Logistic regression's test accuracy decreased slightly, from 68.0%
+to 67.3% . Class 1 recall also decreased,
+from 0.60 to 0.55, while class 0 F1-score remained unchanged.
+
+The decision tree's test accuracy increased from 62.9% to 64.8%
+. Its training accuracy decreased and its
+reported train–test gap narrowed from 0.199 to 0.148, suggesting
+less overfitting. Class 1 F1-score improved from 0.55 to 0.58.
+
+Logistic regression still achieved the higher test accuracy after
+cleaning: 67.3%, compared with 64.8% for the decision tree.
+
+Cleaning improved data consistency, but did not improve every
+performance metric. A controlled comparison would use the same
+held-out records and model settings for both versions.

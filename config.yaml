@@ -42,13 +42,25 @@ diagnostics:
       high: "High"
 redundant_columns: ["prior_offenses", "age_in_months", "juvenile_total"]
 
+
+preprocessing:
+  encoder: "target"      # winner of the 4x4 empirical grid (onehot/ordinal/count/target x none/standard/minmax/robust),
+  scaler: "standard"     # scored on accuracy across 15 repeated splits -- see 02_preprocessing.ipynb's grid + paired check
+  numeric_features: ["age", "juv_fel_count", "juv_misd_count", "juv_other_count", "priors_count"]
+  categorical_features: ["sex", "age_cat", "c_charge_degree"]
+  mnar_indicator_sources: ["priors_count", "c_charge_degree"]
+  imputation:
+    numeric_strategy: "median"        # applies to age, juv_fel_count, juv_misd_count, juv_other_count, priors_count
+    categorical_strategy: "most_frequent"
+
+  
 split:
   test_size: 0.2
   random_state: 42
 
 model:
-  type: "decision_tree"   # or "decision_tree"
+  type: "logistic_regression"  
   params:
     random_state: 42
 output:
-  results_dir: "results"   # each run's full report is saved here as a timestamped .txt file
+  results_dir: "results"  

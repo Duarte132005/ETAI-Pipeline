@@ -60,6 +60,36 @@ def clean_dataset(df: pd.DataFrame, diagnostics_config: dict) -> pd.DataFrame:
 
     return out
 
+def add_missingness_indicators(df: pd.DataFrame, mnar_indicator_sources: list) -> pd.DataFrame:
+    """Adds a `<col>_was_missing` flag for each MNAR-diagnosed column, before that
+    column gets imputed -- so a model can still see the pattern even though the fill
+    value itself (median/mode) can't carry it. Target-agnostic."""
+    out = df.copy()
+    for col in mnar_indicator_sources:
+        if col in out.columns:
+            out[f"{col}_was_missing"] = out[col].isna().astype(int)
+    return out
+
+
+def split_features_target(df: pd.DataFrame, data_config: dict, mnar_indicator_sources: list):
+    """
+    Returns (X, y, extras). `y` is `None` and `extras` has no target column when called
+    on label-free inference data -- nothing downstream requires the target to be present.
+    """
+    target = data_config["target"]
+    sensitive_attr = data_config["sensitive_attr"]
+    drop_columns = data_config.get("drop_columns", [])
+
+    df = add_missingness_indicators(df, mnar_indicator_sources)
+    y = df[target] if target in df.columns else None
+
+    extras_cols = [c for c in [sensitive_attr, "score_text"] if c in df.columns]
+    extras = df[extras_cols].copy() if extras_cols else None
+
+    always_drop = set(drop_columns) | {target, sensitive_attr}
+    feature_cols = [c for c in df.columns if c not in always_drop]
+    X = df[feature_cols]
+    return X, y, extras
 
 def split_train_test(X, y, extras, test_size: float, random_state: int):
     """
@@ -73,3 +103,5 @@ def split_train_test(X, y, extras, test_size: float, random_state: int):
         X, y, extras, test_size=test_size, random_state=random_state, stratify=y
     )
     return X_train, X_test, y_train, y_test, extras_train, extras_test
+
+

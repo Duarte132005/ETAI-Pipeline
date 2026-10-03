@@ -18,7 +18,7 @@ Decision tree has a higher train accurary of 0.829 and a test accuracy of 0.629 
 So we can conclude that logistic regression is the better model for now.
 
 --
-## Week 2 — Data Diagnosis and Preprocessing
+## Week 2 Data Diagnosis and Preprocessing
 
 This week, we extended the pipeline with data quality checks.
 
@@ -76,46 +76,24 @@ performance metric. A controlled comparison would use the same
 held-out records and model settings for both versions.
 
 
-## Week 3 — Preprocessing Pipeline and Cross-Validation
+## Week 3 Preprocessing Pipeline and Cross-Validation
 
 This week, we replaced the single train test evaluation with
 cross-validation on a development set, keeping a separate test set
 for the final assessment.
 
-### Preprocessing changes
-
-- Separated duplicate removal from data cleaning, so cleaning preserves
-  every input row.
-- Replaced dropping rows with missing features with imputation:
-  numeric and categorical values are filled according to the configuration.
-- Added configurable categorical encoding and numeric scaling.
-- Added missingness indicators for configured columns, allowing the
-  model to use information about which values were missing.
-- Placed imputation, encoding and scaling inside a scikit-learn
-  `Pipeline`, so they are fitted only on the training portion of
-  each cross-validation fold.
-
 ### Evaluation method
 
-We set aside 20% of the data as a held-out test set using
-`random_state=42`. This set was not evaluated during this week's
-model comparison.
-
-On the development set, we used five-fold stratified cross-validation.
+I used five-fold stratified cross-validation.
 Stratification approximately preserves the class proportions in each
 fold.
-
-We also generated out-of-fold predictions: each development row was
-predicted by a model that had not trained on that row. These predictions
-were used for the classification and fairness reports.
 
 After cross-validation, each model's pipeline was refitted on the
 entire development set.
 
 ### Model comparison
 
-Both models used `random_state=42`. The development set contained
-5,771 rows: 3,170 from class 0 and 2,601 from class 1.
+Both models used random_state=42. The development set contained
 
 | Metric | Logistic regression | Decision tree |
 |---|---:|---:|
@@ -123,12 +101,12 @@ Both models used `random_state=42`. The development set contained
 | Mean validation accuracy | 0.675 | 0.599 |
 | Validation accuracy standard deviation | 0.013 | 0.023 |
 | Mean train–validation gap | 0.002 | 0.101 |
-| Class 0 precision (OOF) | 0.67 | 0.62 |
-| Class 0 recall (OOF) | 0.81 | 0.69 |
-| Class 0 F1-score (OOF) | 0.73 | 0.66 |
-| Class 1 precision (OOF) | 0.69 | 0.56 |
-| Class 1 recall (OOF) | 0.51 | 0.49 |
-| Class 1 F1-score (OOF) | 0.59 | 0.52 |
+| Class 0 precision  | 0.67 | 0.62 |
+| Class 0 recall  | 0.81 | 0.69 |
+| Class 0 F1-score  | 0.73 | 0.66 |
+| Class 1 precision | 0.69 | 0.56 |
+| Class 1 recall  | 0.51 | 0.49 |
+| Class 1 F1-score | 0.59 | 0.52 |
 
 Logistic regression achieved a mean validation accuracy of 67.5%,
 compared with 59.9% for the decision tree difference of

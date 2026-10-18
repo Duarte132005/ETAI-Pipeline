@@ -128,3 +128,43 @@ regression and 64.8% for the decision tree. This week's mean
 cross-validation accuracies were 67.5% and 59.9%, respectively.
 
 Logistic regression performed better in this development-set comparison.
+
+
+
+## Hyperparameter Tuning  Decision Tree and Random Forest
+
+Both models used the same preprocessing and development data, with **five outer folds, 30 Optuna trials and five inner folds**.
+
+| Model | Baseline CV accuracy | Tuned nested CV accuracy | Improvement |
+|---|---:|---:|---:|
+| Decision Tree | 60.9% | 67.5% | +6.6 percentage points |
+| Random Forest | 64.5% | 68.0% | +3.5 percentage points |
+
+Tuning improved both models and reduced their mean training–validation gaps to below **one percentage point**.
+
+The final selected parameters were:
+
+- **Decision Tree:** depth 5, minimum leaf size 3, entropy criterion.
+- **Random Forest:** 200 trees, depth 7, minimum leaf size 3, `max_features="sqrt"`.
+
+Random Forest achieved slightly higher accuracy, while Decision Tree offered a simpler model. Both retained an approximately **14-percentage-point FPR gap between African-American and Caucasian groups**.
+
+Both final models were refitted on **5,771 development rows**. The **1,443 test rows remained locked and unevaluated**.
+
+
+## Ensemble Comparison  AdaBoost and Oblique Random Forest
+
+We compared both models using the same preprocessing and development data, with **five outer folds, 30 Optuna trials per study and five inner folds**.
+
+| Model | Baseline CV accuracy | Tuned nested CV accuracy | Improvement |
+|---|---:|---:|---:|
+| AdaBoost | 67.6% | 67.9% | +0.3 percentage points |
+| Oblique Random Forest | 63.9% | 68.2% | +4.3 percentage points |
+
+Tuning improved both models, particularly Oblique Random Forest. After tuning, both had a mean training–validation gap of approximately **0.8 percentage points**.
+
+The corrected paired t-test returned **t = −0.531** and **p = 0.624**, with AdaBoost winning **2 of 5 folds**. Oblique Random Forest averaged **0.26 percentage points higher accuracy**, but the difference was **not statistically significant at the 5% level**. These results do not establish a clear performance winner.
+
+The fairness audit still showed an approximately **13-percentage-point FPR gap between African-American and Caucasian groups** for both models.
+
+Both final models were refitted on **5,771 development rows**. The **1,443 test rows remained locked and unevaluated**.

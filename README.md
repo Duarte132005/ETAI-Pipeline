@@ -168,3 +168,31 @@ The corrected paired t-test returned **t = −0.531** and **p = 0.624**, with Ad
 The fairness audit still showed an approximately **13-percentage-point FPR gap between African-American and Caucasian groups** for both models.
 
 Both final models were refitted on **5,771 development rows**. The **1,443 test rows remained locked and unevaluated**.
+
+
+### week 8
+
+## Model Comparison and Probability Evaluation
+
+We compared six models using the same development data, **target encoding and robust scaling**, with **five outer folds, 30 Optuna trials per study and five inner folds**. All comparisons used stratified folds with **random state 42**.
+
+**ROC-AUC was the selection metric.** Tuned results below are outer-fold means ± standard deviations.
+
+| Model | Baseline CV ROC-AUC | Tuned nested CV ROC-AUC | Improvement |
+|---|---:|---:|---:|
+| Histogram Gradient Boosting | 0.717 | **0.729 ± 0.015** | +0.012 |
+| AdaBoost | 0.723 | 0.727 ± 0.015 | +0.004 |
+| Oblique Random Forest | 0.685 | 0.726 ± 0.015 | +0.041 |
+| Random Forest | 0.682 | 0.724 ± 0.015 | +0.042 |
+| Decision Tree | 0.605 | 0.717 ± 0.014 | +0.112 |
+| Gaussian Naive Bayes | 0.685 | 0.706 ± 0.012 | +0.021 |
+
+Tuning improved ROC-AUC for every model, particularly the Decision Tree. All models exceeded the **dummy-model ROC-AUC floor of 0.500**.
+
+Histogram Gradient Boosting achieved the highest mean ROC-AUC and **average precision of 0.694**. Its accuracy was **67.9%**, positive-class F1 was **0.641**, and Recall was **63.5%**. AdaBoost achieved the highest accuracy at **68.4%**. The small ROC-AUC differences between the leading models do not establish a statistically significant winner without a paired comparison of these updated runs.
+
+Evaluation used **out-of-fold probabilities** for ROC-AUC and average precision. A **0.5 probability threshold** produced the labels used for classification and fairness reporting. Histogram Gradient Boosting’s mean training–validation ROC-AUC gap decreased from **0.058 to 0.010**, indicating reduced overfitting after tuning.
+
+The fairness audit still showed unequal false-positive rates among people who did not reoffend. For Histogram Gradient Boosting, the FPR was **36% for African-American individuals and 22% for Caucasian individuals**, a **14-percentage-point gap**. AdaBoost had rates of **29% and 16%**, respectively, a **13-percentage-point gap**. Therefore, improved predictive performance did not eliminate the observed racial disparities.
+
+All final models were refitted on **5,771 development rows**. The **1,443 test rows remained locked and unevaluated**.

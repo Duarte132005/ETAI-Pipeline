@@ -1,6 +1,10 @@
 """Model construction: the model alone (`build_model`) and preprocessing + model (`build_pipeline`)."""
 from sklearn.dummy import DummyClassifier
-from sklearn.ensemble import AdaBoostClassifier, BaggingClassifier, RandomForestClassifier
+from sklearn.ensemble import (
+    AdaBoostClassifier, BaggingClassifier, GradientBoostingClassifier, HistGradientBoostingClassifier,
+    RandomForestClassifier,
+)
+from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.random_projection import SparseRandomProjection
@@ -34,6 +38,7 @@ def oblique_random_forest(n_estimators: int = 100, n_components: int = 10, densi
                              random_state=random_state, n_jobs=n_jobs)
 
 
+
 _MODELS = {
     "dummy": DummyClassifier,
     "logistic_regression": LogisticRegression,
@@ -41,7 +46,11 @@ _MODELS = {
     "random_forest": RandomForestClassifier,
     "oblique_random_forest": oblique_random_forest,
     "adaboost": adaboost,
+    "gradient_boosting": GradientBoostingClassifier,
+    "hist_gradient_boosting": HistGradientBoostingClassifier,
+    "naive_bayes": GaussianNB,
 }
+
 
 
 def build_model(model_config: dict):

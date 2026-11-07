@@ -196,3 +196,50 @@ Evaluation used **out-of-fold probabilities** for ROC-AUC and average precision.
 The fairness audit still showed unequal false-positive rates among people who did not reoffend. For Histogram Gradient Boosting, the FPR was **36% for African-American individuals and 22% for Caucasian individuals**, a **14-percentage-point gap**. AdaBoost had rates of **29% and 16%**, respectively, a **13-percentage-point gap**. Therefore, improved predictive performance did not eliminate the observed racial disparities.
 
 All final models were refitted on **5,771 development rows**. The **1,443 test rows remained locked and unevaluated**.
+
+
+# Week 9
+
+## XGBoost and Pipeline Feature Selection
+
+We evaluated **eight models**, adding XGBoost and standard Gradient Boosting to the previous comparison. All runs used **target encoding, robust scaling and stratified folds with random state 42**. Tuning used **five outer folds, 30 Optuna trials per study and five inner folds**, with **ROC-AUC as the selection metric**. Tuned results below are outer-fold means ± standard deviations.
+
+A learned **VoteSelector** step was placed between preprocessing and the classifier and fitted within each fold’s training data. Its `min_votes` threshold, ranging from **1 to 3**, was tuned jointly with the classifier parameters. **This week’s baseline already used feature selection with `min_votes=2`**, so the improvements below measure the combined tuning procedure.
+
+Pipeline caching reused preprocessing and selection fits when the training data and settings were identical. Temporary caches were removed after each run, and evaluation outputs were saved before report generation.
+
+| Model | Baseline CV ROC-AUC | Tuned nested CV ROC-AUC | Improvement | Final min_votes | Features kept |
+|---|---:|---:|---:|---:|---:|
+| Oblique Random Forest | 0.655 | **0.728 ± 0.014** | +0.073 | 1 | 10/10 |
+| Histogram Gradient Boosting | 0.708 | 0.727 ± 0.015 | +0.019 | 1 | 10/10 |
+| XGBoost | 0.721 | 0.726 ± 0.014 | +0.005 | 1 | 10/10 |
+| Random Forest | 0.656 | 0.726 ± 0.015 | +0.070 | 1 | 10/10 |
+| Gradient Boosting | 0.724 | 0.726 ± 0.013 | +0.002 | 1 | 10/10 |
+| AdaBoost | 0.721 | 0.723 ± 0.015 | +0.002 | 1 | 10/10 |
+| Decision Tree | 0.639 | 0.717 ± 0.013 | +0.078 | 3 | 2/10 |
+| Gaussian Naive Bayes | 0.703 | 0.708 ± 0.013 | +0.005 | 2 | 2/10 |
+
+Tuning increased ROC-AUC for every model, particularly the Decision Tree, Oblique Random Forest and Random Forest. All models exceeded the **dummy-model ROC-AUC floor of 0.500**. Oblique Random Forest achieved this week’s highest mean ROC-AUC, but the small differences between the leading models do not establish a statistically significant winner.
+
+Feature selection reduced the final **Decision Tree and Gaussian Naive Bayes** models to **age and prior convictions (`priors_count`)**. The other six final models retained **all 10 features**. These counts describe the final refits; selected subsets could differ across individual folds.
+
+Evaluation used **out-of-fold probabilities** for ROC-AUC and average precision. A fixed **0.5 threshold** generated labels for classification and fairness reporting, with **class 1 representing reoffending**. Oblique Random Forest achieved the highest mean accuracy (**68.3%**), while XGBoost achieved the highest average precision (**0.693**). Random Forest achieved the highest positive-class F1 (**0.637**) and recall (**63.7%**). Gaussian Naive Bayes achieved the highest precision (**0.734**) but much lower recall (**28.6%**).
+
+The mean training–validation ROC-AUC gap decreased from **0.094 to 0.017** for the Decision Tree and from **0.026 to 0.013** for XGBoost, consistent with reduced overfitting. AdaBoost’s gap increased from **0.005 to 0.017**, so tuning did not reduce this gap for every model.
+
+Compared with last week’s tuned results, the changes were small:
+
+| Model | Week 8 tuned ROC-AUC | Week 9 tuned ROC-AUC | Change |
+|---|---:|---:|---:|
+| Histogram Gradient Boosting | 0.729 | 0.727 | −0.002 |
+| AdaBoost | 0.727 | 0.723 | −0.004 |
+| Oblique Random Forest | 0.726 | 0.728 | +0.002 |
+| Random Forest | 0.724 | 0.726 | +0.002 |
+| Decision Tree | 0.717 | 0.717 | 0.000 |
+| Gaussian Naive Bayes | 0.706 | 0.708 | +0.002 |
+
+Last week’s Histogram Gradient Boosting result, **0.729 ± 0.015**, remains the highest mean in the saved scoreboard. **The older runs did not record their feature-selection setting**, so this comparison does not isolate the effect of feature selection. A controlled comparison with selection enabled and disabled would be needed to assess that effect.
+
+The fairness audit continued to show unequal false-positive rates among people who did not reoffend. For **Oblique Random Forest**, rates were approximately **30% for African-American individuals and 15% for Caucasian individuals**, a **15-percentage-point gap**. XGBoost’s rates were **29% and 17%**, a **12-point gap**. Gaussian Naive Bayes had a smaller gap (**13% versus 5%**), alongside its low recall. Lower false-positive rates alone therefore do not establish better overall performance or fairness. Results for the smallest groups also require caution because their sample sizes were small.
+
+All final models were refitted on **5,771 development rows**. The **1,443 test rows remained locked and unevaluated**.

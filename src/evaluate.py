@@ -76,36 +76,36 @@ def oof_classification_report(y_true, y_pred) -> str:
 
 
 def fairness_report(y_true, y_pred, extras: pd.DataFrame, sensitive_attr: str = "race") -> str:
-    """
-    False positive rate (share of people who did not reoffend but were predicted to) per
-    group of `sensitive_attr`, for the model's predictions and for COMPAS's own score
-    (`score_text` other than "Low" counts as predicted to reoffend), on the same rows.
-    Rows with an unknown group are reported as "unknown". A simple check, not a full audit.
-    """
+    """Report out-of-fold false positive rates by group for a binary target."""
     df = extras.copy()
     df[sensitive_attr] = df[sensitive_attr].astype(object).fillna("unknown")
-    df["y_true"] = pd.Series(y_true).values
-    df["y_pred_model"] = y_pred
-    df["y_pred_compas"] = (df["score_text"] != "Low").astype(int)
+    df["y_true"] = pd.Series(y_true).to_numpy()
+    df["y_pred_model"] = pd.Series(y_pred).to_numpy()
+
+    comparisons = [("Our model", "y_pred_model")]
+    description = "(share of actual class-0 rows predicted as class 1)"
+
+    if "score_text" in df.columns:
+        df["y_pred_compas"] = (df["score_text"] != "Low").astype(int)
+        comparisons.append(("COMPAS's own score", "y_pred_compas"))
+        description = "(share of people who did NOT reoffend, but were predicted to)"
 
     lines = [
         f"False positive rate by {sensitive_attr} (development set, out-of-fold)",
-        "(share of people who did NOT reoffend, but were predicted to)",
+        description,
         "",
     ]
-    for label, col in [("Our model", "y_pred_model"), ("COMPAS's own score", "y_pred_compas")]:
+    negatives = df.loc[df["y_true"].eq(0)]
+    for label, column in comparisons:
         lines.append(f"  {label}:")
-        for group, g in df.groupby(sensitive_attr):
-            negatives = g[g["y_true"] == 0]
-            if len(negatives) == 0:
-                continue
-            fpr = (negatives[col] == 1).mean()
-            lines.append(f"    {group:<20s} FPR = {fpr:.2f}  (n={len(negatives)})")
+        for group, group_rows in negatives.groupby(sensitive_attr):
+            fpr = group_rows[column].eq(1).mean()
+            lines.append(f"    {str(group):<20s} FPR = {fpr:.2f}  (n={len(group_rows)})")
         lines.append("")
 
-    text = "\n".join(lines)
-    print(text)
-    return text
+    report = "\n".join(lines)
+    print(report)
+    return report
 
 
 def build_scorers(metrics: list) -> dict:

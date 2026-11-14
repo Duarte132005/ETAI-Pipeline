@@ -243,3 +243,73 @@ Last week’s Histogram Gradient Boosting result, **0.729 ± 0.015**, remains th
 The fairness audit continued to show unequal false-positive rates among people who did not reoffend. For **Oblique Random Forest**, rates were approximately **30% for African-American individuals and 15% for Caucasian individuals**, a **15-percentage-point gap**. XGBoost’s rates were **29% and 17%**, a **12-point gap**. Gaussian Naive Bayes had a smaller gap (**13% versus 5%**), alongside its low recall. Lower false-positive rates alone therefore do not establish better overall performance or fairness. Results for the smallest groups also require caution because their sample sizes were small.
 
 All final models were refitted on **5,771 development rows**. The **1,443 test rows remained locked and unevaluated**.
+
+# week 10
+
+
+## Beyond COMPAS
+
+For Option A, we adapted the binary classification pipeline to predict whether a person earns more than $50,000 a year (`income_over_50k = 1`). The course training file contains 6,000 labeled rows, with about 24% in the positive class. The separate file `adult_new.csv` contains 2,000 people to score.
+
+
+### What broke and how we fixed it
+
+| Issue | Cause | Fix |
+| --- | --- | --- |
+| The entry point always loaded the COMPAS config | `main.py` called `load_config()` with its default path | Added an optional positional config argument. The default command uses `config.yaml`. |
+| The first cleaning check raised `KeyError: 'workclass'` | The copied YAML still pointed to the 7,286-row COMPAS file | Set the Adult CSV path, target, diagnostics, and feature lists in `config_adult.yaml`. |
+| Tuning failed for Logistic Regression | The config had no `logistic_regression` search space | Ran Logistic Regression as an untuned baseline and enabled tuning for models with configured search spaces. |
+| The Adult fairness report raised `KeyError: 'score_text'` | It always built a comparison from COMPAS's own score | Made the comparison conditional on `score_text` being present and grouped the model's false positive rates by the sensitive attribute from the config. |
+
+### Preprocessing
+
+- **Features and audit fields.** We excluded `id` and the census sampling weight `fnlwgt`. We kept `education_num` as the ordered representation of education and removed the duplicate text field `education`. We used `sex` for the fairness audit and excluded both `sex` and `race` from the model inputs. All 25 anonymized variables entered the pipeline as candidate features, with `v01`–`v18` treated as numeric and `v19`–`v25` as categorical.
+- **Missing values.** The cleaning check preserved all 6,000 rows and converted every literal `?` in `workclass`, `occupation`, and `native_country` to missing. Before imputation, their missing counts were 379, 381, and 86, respectively. We used median imputation for numeric gaps, including `v01`–`v06`, and most-frequent imputation for categorical gaps. We added binary missingness flags for `workclass` and `occupation` because the course diagnosis found a lower positive rate among rows missing employment information.
+- **Validity rules.** The Adult config accepts ages 17–90, weekly hours 1–99, and nonnegative capital gains and losses. This allows 17-year-olds and preserves `capital_gain = 99999`, the census code for gains of $99,999 or more.
+- **Encoding and scaling.** Target encoding represents categories with estimates of the positive-class rate and keeps `native_country` compact despite its many rare levels. Robust scaling uses the median and interquartile range for numeric features. The pipeline fits these steps and imputation on the training data within each fold.
+- **Feature selection.** After preprocessing, `VoteSelector` combines votes from Random Forest, Gradient Boosting, and L1-regularized Logistic Regression. The baseline used a two-vote minimum, and tuning could adjust that minimum.
+
+### Model comparison
+
+We used 4,800 development rows with five shuffled stratified folds (seed 42). The 1,200-row test set stayed locked. For each tuned model, Optuna used 30 trials with five inner folds to select by ROC-AUC. The table reports outer-fold scores for the tuned models and standard five-fold scores for Logistic Regression. One run must reach **ROC-AUC ≥ 0.900, accuracy ≥ 0.855, and class 1 F1 ≥ 0.660**. Accuracy and F1 use a 0.5 classification threshold. The dummy ROC-AUC was 0.500.
+
+| Model | Baseline ROC-AUC | Reported ROC-AUC (mean ± SD) | Accuracy | Class 1 F1 | All three met |
+| --- | ---: | ---: | ---: | ---: | :---: |
+| **Gradient Boosting** | 0.912 | **0.911 ± 0.015** | **0.859** | **0.673** | **Yes** |
+| XGBoost | 0.914 | 0.910 ± 0.015 | 0.858 | 0.665 | Yes |
+| Histogram Gradient Boosting | 0.905 | 0.910 ± 0.016 | 0.820 | 0.689 | No |
+| Oblique Random Forest | 0.896 | 0.908 ± 0.014 | 0.855 | 0.624 | No |
+| AdaBoost | 0.903 | 0.906 ± 0.016 | 0.857 | 0.664 | Yes |
+| Random Forest | 0.894 | 0.904 ± 0.015 | 0.817 | 0.682 | No |
+| Logistic Regression (untuned) | 0.896 | 0.896 ± 0.014 | 0.799 | 0.664 | No |
+| Naive Bayes | 0.878 | 0.886 ± 0.013 | 0.829 | 0.548 | No |
+| Decision Tree | 0.721 | 0.883 ± 0.017 | 0.787 | 0.656 | No |
+
+- **Boosted models.** Gradient Boosting led the tuned runs on mean ROC-AUC. Baseline XGBoost was strongest before tuning, with 0.914 ROC-AUC, 0.864 accuracy, and 0.685 F1. Its nested estimates were lower on all three metrics and still met the targets. AdaBoost moved from 0.849 accuracy and 0.651 F1 at baseline to 0.857 and 0.664 after tuning, clearing both cutoffs.
+- **Precision and recall.** Histogram Gradient Boosting had the highest reported F1 (0.689), with 0.832 recall and 0.588 precision. Its accuracy, like Random Forest's, fell short of the target. Oblique Random Forest had 0.827 precision and 0.507 recall, which left F1 at 0.624. Class-weighted Logistic Regression reached 0.830 recall, with 0.554 precision and 0.799 accuracy.
+- **Decision Tree and Naive Bayes.** The single tree gained 0.162 ROC-AUC points after tuning, the largest gain, and its mean train–validation gap fell from 0.144 to 0.027. Accuracy remained below target. Tuned Naive Bayes recovered 43.8% of positives, which limited its F1 to 0.548.
+
+Using the five matched outer folds, corrected paired ROC-AUC tests gave approximate two-sided p-values of **0.51** for Gradient Boosting versus XGBoost and **0.70** versus Histogram Gradient Boosting. These calculations use the fold scores rounded to three decimals in the run reports, and the results leave the ordering of the three models uncertain.
+
+### Selected model and retained features
+
+We selected **Gradient Boosting** (run `20261114_194014_809087`) because it had the highest reported nested ROC-AUC among the runs meeting all three targets. The final fit used all 4,800 development rows and kept **8 of 37** preprocessed inputs with a two-vote minimum. Optuna selected 290 estimators, a maximum depth of 2, a minimum of 2 samples per leaf, a learning rate of about 0.066, and a subsample fraction of about 0.793.
+
+| Type | Retained features |
+| --- | --- |
+| Numeric | `age`, `education_num`, `capital_gain`, `capital_loss`, `hours_per_week` |
+| Categorical | `marital_status`, `occupation`, `relationship` |
+
+The final selector screened out all 25 anonymized variables and both missingness flags. Eight of the nine model refits kept the same eight inputs. Naive Bayes used a three-vote minimum and also screened out `capital_loss`.
+
+In the selected run, the out-of-fold false positive rate at 0.5 was **2%** for the Female group (1,390 actual class 0 rows) and **9%** for the Male group (2,261 actual class 0 rows), a gap of about seven percentage points.
+
+### Reflection
+
+The hardest assumption to find was in the fairness report because cross-validation had already saved its scores when the lookup for `score_text` failed. Using the same preprocessing and folds across estimators let us compare which configurations met the targets at the assignment's 0.5 threshold. Gradient Boosting reached 0.757 precision and 0.607 recall, which gave it a class 1 F1 of 0.673 alongside accuracy above the cutoff.
+
+### Prediction export and final checks
+
+After the selected model's refit, apply the same Adult cleaning and fitted preprocessing to `data/adult_new.csv`. Keep every input row and its original `id`. The export `adult_predictions.csv` should have 2,000 rows in input order and three columns (`id`, `probability`, `prediction`), with class 1 assigned when its probability is at least 0.5.
+
+The prediction export and a full COMPAS rerun are pending verification. Also check that the next Adult run writes its report and scoreboard under `results_adult/`.

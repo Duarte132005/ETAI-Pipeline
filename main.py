@@ -8,7 +8,7 @@ Load and clean data -> deduplicate -> lock the test set -> development-set CV
 import tempfile
 from datetime import datetime
 from pathlib import Path
-
+import argparse
 import numpy as np
 import optuna
 import pandas as pd
@@ -83,8 +83,8 @@ def save_evaluation_outputs(directory, config, fold_scores, final_scores,
         yaml.safe_dump(best_params, handle, sort_keys=False)
 
 
-def main():
-    config = load_config()
+def main(config_path: str = "config.yaml"):
+    config = load_config(config_path)
     run = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     model_type = config["model"]["type"]
     cv_config = config["cv"]
@@ -272,5 +272,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Run the classification pipeline.")
+    parser.add_argument("config_path", nargs="?", default="config.yaml")
+    args = parser.parse_args()
+    main(args.config_path)
 
